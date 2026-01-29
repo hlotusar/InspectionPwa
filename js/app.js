@@ -45,13 +45,45 @@ class App {
         // Setup Audio callbacks
         this._setupAudioCallbacks();
 
+        // Setup network listeners
+        this._setupNetworkListeners();
+
         console.log('[App] Initialized');
+    }
+
+    /**
+     * Setup network status listeners for offline detection
+     */
+    _setupNetworkListeners() {
+        window.addEventListener('offline', () => {
+            console.log('[App] Network offline');
+            if (this.isRunning) {
+                this.ui.setConnectionStatus('error', 'Internet connection lost');
+                this.stop();
+            }
+        });
+
+        window.addEventListener('online', () => {
+            console.log('[App] Network back online');
+            if (!this.isRunning) {
+                this.ui.setConnectionStatus('disconnected', 'Back online - ready');
+            }
+        });
     }
 
     /**
      * Setup Gemini client callbacks
      */
     _setupGeminiCallbacks() {
+        this.gemini.onConnecting = (attempt, maxAttempts) => {
+            this.ui.setConnectionStatus('connecting', `Connecting... (${attempt}/${maxAttempts})`);
+        };
+
+        this.gemini.onRetry = (attempt, maxAttempts, reason) => {
+            console.log(`[App] Gemini retry ${attempt}/${maxAttempts}: ${reason}`);
+            this.ui.setConnectionStatus('connecting', `Retrying... (${attempt}/${maxAttempts})`);
+        };
+
         this.gemini.onConnected = () => {
             console.log('[App] Gemini connected');
             this.ui.setConnectionStatus('connected');
@@ -71,7 +103,12 @@ class App {
 
         this.gemini.onError = (error) => {
             console.error('[App] Gemini error:', error);
-            this.ui.setConnectionStatus('error', 'Connection error');
+            const message = this._getErrorMessage(error);
+            this.ui.setConnectionStatus('error', message);
+
+            if (this.isRunning) {
+                this.stop();
+            }
         };
 
         this.gemini.onAudioResponse = (base64Audio) => {
@@ -125,7 +162,8 @@ class App {
 
         this.camera.onError = (error) => {
             console.error('[App] Camera error:', error);
-            this.ui.setConnectionStatus('error', 'Camera error');
+            const message = this._getPermissionErrorMessage(error, 'camera');
+            this.ui.setConnectionStatus('error', message);
         };
     }
 
@@ -158,13 +196,77 @@ class App {
 
         this.audio.onError = (error) => {
             console.error('[App] Audio error:', error);
+            const message = this._getPermissionErrorMessage(error, 'microphone');
+            this.ui.setConnectionStatus('error', message);
         };
+    }
+
+    /**
+     * Get user-friendly error message for permission errors
+     * @param {Error} error - The error object
+     * @param {string} device - Device type ('camera' or 'microphone')
+     * @returns {string} User-friendly error message
+     */
+    _getPermissionErrorMessage(error, device) {
+        const name = error.name || '';
+        const message = error.message || '';
+
+        if (name === 'NotAllowedError' || message.includes('Permission denied')) {
+            return `Please allow ${device} access`;
+        }
+
+        if (name === 'NotFoundError' || message.includes('not found')) {
+            return `No ${device} found`;
+        }
+
+        if (name === 'NotReadableError' || message.includes('in use')) {
+            return `${device.charAt(0).toUpperCase() + device.slice(1)} in use by another app`;
+        }
+
+        if (name === 'OverconstrainedError') {
+            return `${device.charAt(0).toUpperCase() + device.slice(1)} doesn't support required settings`;
+        }
+
+        return error.userMessage || error.message || `${device.charAt(0).toUpperCase() + device.slice(1)} error`;
+    }
+
+    /**
+     * Get user-friendly error message for general errors
+     * @param {Error} error - The error object
+     * @returns {string} User-friendly error message
+     */
+    _getErrorMessage(error) {
+        const message = error.message || '';
+
+        if (message.includes('timeout')) {
+            return 'Connection timed out';
+        }
+
+        if (message.includes('retries')) {
+            return 'Could not connect - check your internet';
+        }
+
+        if (message.includes('not found') || message.includes('not supported')) {
+            return 'API model not available';
+        }
+
+        if (message.includes('API key') || message.includes('401') || message.includes('403')) {
+            return 'Invalid API key';
+        }
+
+        return message || 'Connection error';
     }
 
     /**
      * Start inspection session
      */
     async start() {
+        // Check for internet connection
+        if (!navigator.onLine) {
+            this.ui.setConnectionStatus('error', 'No internet connection');
+            return;
+        }
+
         // Check for API key
         const apiKey = this.ui.getApiKey();
         if (!apiKey) {
@@ -193,13 +295,16 @@ class App {
             // Start camera
             const cameraStarted = await this.camera.start();
             if (!cameraStarted) {
-                throw new Error('Failed to start camera');
+                // Camera manager stores specific error info
+                const cameraError = new Error('Camera access failed');
+                cameraError.name = 'CameraError';
+                throw cameraError;
             }
 
             // Hide camera overlay
             this.ui.setCameraOverlay(false);
 
-            // Connect to Gemini
+            // Connect to Gemini (with built-in retry)
             this.gemini.connect(apiKey);
 
             // Set session timeout (Gemini Live API has 10-min limit)
@@ -211,7 +316,8 @@ class App {
 
         } catch (error) {
             console.error('[App] Error starting:', error);
-            this.ui.setConnectionStatus('error', error.message);
+            const message = this._getPermissionErrorMessage(error, 'device');
+            this.ui.setConnectionStatus('error', message);
             this.stop();
         }
     }

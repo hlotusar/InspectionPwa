@@ -1,6 +1,7 @@
 /**
  * Gemini Live API WebSocket Client
  * Handles bidirectional communication with Gemini's real-time API
+ * Includes retry logic and connection timeout for reliability
  */
 
 class GeminiLiveClient {
@@ -8,6 +9,13 @@ class GeminiLiveClient {
         this.ws = null;
         this.isConnected = false;
         this.isSetupComplete = false;
+
+        // Retry configuration
+        this.apiKey = null;
+        this.maxRetries = 3;
+        this.retryCount = 0;
+        this.connectionTimeout = null;
+        this.CONNECTION_TIMEOUT_MS = 15000; // 15 seconds
 
         // Callbacks
         this.onConnected = null;
@@ -19,18 +27,44 @@ class GeminiLiveClient {
         this.onInterrupted = null;
         this.onTurnComplete = null;
         this.onSetupComplete = null;
+        this.onRetry = null; // New: called on retry attempt
+        this.onConnecting = null; // New: called when connecting
     }
 
     /**
-     * Connect to Gemini Live API
+     * Connect to Gemini Live API with retry support
      * @param {string} apiKey - Gemini API key
+     * @param {number} maxRetries - Maximum retry attempts (default: 3)
      */
-    connect(apiKey) {
+    connect(apiKey, maxRetries = 3) {
+        this.apiKey = apiKey;
+        this.maxRetries = maxRetries;
+        this.retryCount = 0;
+        this._attemptConnection();
+    }
+
+    /**
+     * Attempt to establish WebSocket connection
+     */
+    _attemptConnection() {
         if (this.ws) {
-            this.disconnect();
+            this._cleanupConnection();
         }
 
-        const wsUrl = `${CONFIG.GEMINI_WS_URL}?key=${apiKey}`;
+        const wsUrl = `${CONFIG.GEMINI_WS_URL}?key=${this.apiKey}`;
+
+        console.log(`[GeminiLive] Connecting... (attempt ${this.retryCount + 1}/${this.maxRetries + 1})`);
+
+        if (this.onConnecting) {
+            this.onConnecting(this.retryCount + 1, this.maxRetries + 1);
+        }
+
+        // Set connection timeout
+        this.connectionTimeout = setTimeout(() => {
+            console.warn('[GeminiLive] Connection timeout');
+            this._cleanupConnection();
+            this._handleRetry('Connection timeout');
+        }, this.CONNECTION_TIMEOUT_MS);
 
         try {
             this.ws = new WebSocket(wsUrl);
@@ -38,7 +72,9 @@ class GeminiLiveClient {
 
             this.ws.onopen = () => {
                 console.log('[GeminiLive] WebSocket connected');
+                this._clearConnectionTimeout();
                 this.isConnected = true;
+                this.retryCount = 0; // Reset retry count on successful connection
                 this._sendSetupMessage();
             };
 
@@ -48,29 +84,87 @@ class GeminiLiveClient {
 
             this.ws.onerror = (error) => {
                 console.error('[GeminiLive] WebSocket error:', error);
-                if (this.onError) {
-                    this.onError(error);
-                }
+                this._clearConnectionTimeout();
+                // Don't call onError here - let onclose handle retry
             };
 
             this.ws.onclose = (event) => {
+                this._clearConnectionTimeout();
                 console.log('[GeminiLive] WebSocket closed:', event.code, event.reason);
-                console.log('[GeminiLive] Close event details:', JSON.stringify({
-                    code: event.code,
-                    reason: event.reason,
-                    wasClean: event.wasClean
-                }));
+
+                const wasConnected = this.isConnected;
                 this.isConnected = false;
                 this.isSetupComplete = false;
-                if (this.onDisconnected) {
-                    this.onDisconnected(event);
+
+                // If we were connected and got disconnected unexpectedly, notify
+                if (wasConnected) {
+                    if (this.onDisconnected) {
+                        this.onDisconnected(event);
+                    }
+                } else {
+                    // Connection failed before establishing - try retry
+                    this._handleRetry(event.reason || `Connection closed (code: ${event.code})`);
                 }
             };
         } catch (error) {
             console.error('[GeminiLive] Connection error:', error);
-            if (this.onError) {
-                this.onError(error);
+            this._clearConnectionTimeout();
+            this._handleRetry(error.message);
+        }
+    }
+
+    /**
+     * Handle retry logic with exponential backoff
+     * @param {string} reason - Reason for retry
+     */
+    _handleRetry(reason) {
+        if (this.retryCount < this.maxRetries) {
+            const delay = Math.pow(2, this.retryCount + 1) * 1000; // 2s, 4s, 8s
+            this.retryCount++;
+
+            console.log(`[GeminiLive] Retrying in ${delay / 1000}s... (${this.retryCount}/${this.maxRetries})`);
+
+            if (this.onRetry) {
+                this.onRetry(this.retryCount, this.maxRetries, reason);
             }
+
+            setTimeout(() => {
+                this._attemptConnection();
+            }, delay);
+        } else {
+            console.error('[GeminiLive] Max retries exceeded:', reason);
+            if (this.onError) {
+                this.onError(new Error(`Connection failed after ${this.maxRetries} retries: ${reason}`));
+            }
+        }
+    }
+
+    /**
+     * Clear connection timeout
+     */
+    _clearConnectionTimeout() {
+        if (this.connectionTimeout) {
+            clearTimeout(this.connectionTimeout);
+            this.connectionTimeout = null;
+        }
+    }
+
+    /**
+     * Cleanup WebSocket connection
+     */
+    _cleanupConnection() {
+        this._clearConnectionTimeout();
+        if (this.ws) {
+            this.ws.onopen = null;
+            this.ws.onmessage = null;
+            this.ws.onerror = null;
+            this.ws.onclose = null;
+            try {
+                this.ws.close();
+            } catch (e) {
+                // Ignore close errors
+            }
+            this.ws = null;
         }
     }
 
@@ -78,12 +172,10 @@ class GeminiLiveClient {
      * Disconnect from Gemini Live API
      */
     disconnect() {
-        if (this.ws) {
-            this.ws.close();
-            this.ws = null;
-        }
+        this._cleanupConnection();
         this.isConnected = false;
         this.isSetupComplete = false;
+        this.retryCount = 0;
     }
 
     /**
@@ -119,7 +211,6 @@ class GeminiLiveClient {
      */
     sendAudio(base64Audio) {
         if (!this.isSetupComplete) {
-            console.warn('[GeminiLive] Cannot send audio: setup not complete');
             return;
         }
 
@@ -141,7 +232,6 @@ class GeminiLiveClient {
      */
     sendVideoFrame(base64Image) {
         if (!this.isSetupComplete) {
-            console.warn('[GeminiLive] Cannot send video: setup not complete');
             return;
         }
 
@@ -186,11 +276,25 @@ class GeminiLiveClient {
      */
     _handleMessage(data) {
         try {
-            const text = typeof data === 'string' ? data : new TextDecoder().decode(data);
+            // Handle both string and ArrayBuffer (Safari may send Blob)
+            let text;
+            if (typeof data === 'string') {
+                text = data;
+            } else if (data instanceof ArrayBuffer) {
+                text = new TextDecoder().decode(data);
+            } else if (data instanceof Blob) {
+                // Safari fallback - shouldn't happen with binaryType='arraybuffer'
+                console.warn('[GeminiLive] Received Blob, converting...');
+                data.text().then(t => this._handleMessage(t));
+                return;
+            } else {
+                text = new TextDecoder().decode(data);
+            }
+
             const message = JSON.parse(text);
 
-            // Log all incoming messages for debugging
-            console.log('[GeminiLive] Received:', JSON.stringify(message).substring(0, 500));
+            // Log incoming messages (truncated for readability)
+            console.log('[GeminiLive] Received:', JSON.stringify(message).substring(0, 300));
 
             // Handle setup completion
             if (message.setupComplete) {
@@ -292,7 +396,6 @@ class GeminiLiveClient {
      */
     _send(message) {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-            console.warn('[GeminiLive] Cannot send: WebSocket not open');
             return;
         }
 

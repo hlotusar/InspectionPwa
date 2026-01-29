@@ -3,11 +3,16 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#1a1a2e">
     <meta name="description" content="AI-powered HVAC inspection assistant with real-time video and voice">
+    <!-- Safari/iOS specific -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="AI Inspection">
     <title>AI Live Inspection</title>
     <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%231a1a2e' width='100' height='100' rx='20'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='%234ecca3'>AI</text></svg>">
     <link rel="stylesheet" href="css/styles.css">
 </head>
 
@@ -37,7 +42,7 @@
             <!-- Camera Preview -->
             <section class="camera-section">
                 <div class="camera-container">
-                    <video id="cameraPreview" autoplay playsinline muted></video>
+                    <video id="cameraPreview" autoplay playsinline webkit-playsinline muted></video>
                     <canvas id="captureCanvas" class="hidden"></canvas>
                     <div id="cameraOverlay" class="camera-overlay">
                         <span>Camera Preview</span>
