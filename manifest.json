@@ -1,0 +1,17 @@
+{
+    "name": "AI Live Inspection",
+    "short_name": "Inspection",
+    "description": "AI-powered HVAC inspection assistant with real-time video and voice",
+    "start_url": "/index.html",
+    "display": "standalone",
+    "background_color": "#1a1a2e",
+    "theme_color": "#1a1a2e",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%231a1a2e' width='100' height='100' rx='20'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='%234ecca3'>AI</text></svg>",
+            "sizes": "any",
+            "type": "image/svg+xml"
+        }
+    ]
+}
