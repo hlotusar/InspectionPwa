@@ -107,20 +107,8 @@
                 </button>
             </div>
             <div class="modal-body">
-                <div class="form-group">
-                    <label for="apiKeyInput">Gemini API Key</label>
-                    <input type="password" id="apiKeyInput" placeholder="Enter your Gemini API key">
-                    <small>Get your key at <a href="https://aistudio.google.com/apikey"
-                            target="_blank">aistudio.google.com</a></small>
-                </div>
-                <div class="form-group">
-                    <label for="webhookInput">Webhook URL (optional)</label>
-                    <input type="url" id="webhookInput" placeholder="https://your-webhook.com/endpoint">
-                    <small>Findings will be POSTed here when session ends</small>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button id="saveSettingsBtn" class="btn primary">Save Settings</button>
+                <p>API credentials are configured in <code>js/config.js</code></p>
+                <small>Edit the file to set your Gemini API key and optional webhook URL.</small>
             </div>
         </div>
     </div>

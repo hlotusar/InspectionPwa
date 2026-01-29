@@ -267,11 +267,9 @@ class App {
             return;
         }
 
-        // Check for API key
-        const apiKey = this.ui.getApiKey();
-        if (!apiKey) {
-            this.ui.showSettings();
-            alert('Please enter your Gemini API key in settings.');
+        // Check for API key in config
+        if (!CONFIG.GEMINI_API_KEY || CONFIG.GEMINI_API_KEY === 'YOUR_API_KEY_HERE') {
+            alert('Please configure your Gemini API key in js/config.js');
             return;
         }
 
@@ -305,7 +303,7 @@ class App {
             this.ui.setCameraOverlay(false);
 
             // Connect to Gemini (with built-in retry)
-            this.gemini.connect(apiKey);
+            this.gemini.connect();
 
             // Set session timeout (Gemini Live API has 10-min limit)
             this.sessionTimeout = setTimeout(() => {
@@ -367,8 +365,7 @@ class App {
      * @param {number} sessionDuration - Session duration in milliseconds
      */
     async _sendWebhook(sessionDuration) {
-        const webhookUrl = this.ui.getWebhookUrl();
-        if (!webhookUrl) {
+        if (!CONFIG.WEBHOOK_URL) {
             console.log('[App] No webhook URL configured');
             return;
         }
@@ -378,7 +375,7 @@ class App {
         try {
             console.log('[App] Sending webhook...', sessionData);
 
-            const response = await fetch(webhookUrl, {
+            const response = await fetch(CONFIG.WEBHOOK_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

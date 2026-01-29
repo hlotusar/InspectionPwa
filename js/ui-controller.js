@@ -44,14 +44,8 @@ class UIController {
 
             // Settings modal
             settingsModal: document.getElementById('settingsModal'),
-            closeSettingsBtn: document.getElementById('closeSettingsBtn'),
-            saveSettingsBtn: document.getElementById('saveSettingsBtn'),
-            apiKeyInput: document.getElementById('apiKeyInput'),
-            webhookInput: document.getElementById('webhookInput')
+            closeSettingsBtn: document.getElementById('closeSettingsBtn')
         };
-
-        // Load saved settings
-        this._loadSettings();
 
         // Setup event listeners
         this._setupEventListeners();
@@ -66,7 +60,6 @@ class UIController {
         // Settings modal
         this.elements.settingsBtn.addEventListener('click', () => this.showSettings());
         this.elements.closeSettingsBtn.addEventListener('click', () => this.hideSettings());
-        this.elements.saveSettingsBtn.addEventListener('click', () => this._saveSettings());
 
         // Close modal on backdrop click
         this.elements.settingsModal.addEventListener('click', (e) => {
@@ -74,54 +67,6 @@ class UIController {
                 this.hideSettings();
             }
         });
-    }
-
-    /**
-     * Load saved settings from localStorage
-     */
-    _loadSettings() {
-        const apiKey = localStorage.getItem(CONFIG.STORAGE_API_KEY) || '';
-        const webhookUrl = localStorage.getItem(CONFIG.STORAGE_WEBHOOK_URL) || '';
-
-        this.elements.apiKeyInput.value = apiKey;
-        this.elements.webhookInput.value = webhookUrl;
-    }
-
-    /**
-     * Save settings to localStorage
-     */
-    _saveSettings() {
-        const apiKey = this.elements.apiKeyInput.value.trim();
-        const webhookUrl = this.elements.webhookInput.value.trim();
-
-        if (apiKey) {
-            localStorage.setItem(CONFIG.STORAGE_API_KEY, apiKey);
-        } else {
-            localStorage.removeItem(CONFIG.STORAGE_API_KEY);
-        }
-
-        if (webhookUrl) {
-            localStorage.setItem(CONFIG.STORAGE_WEBHOOK_URL, webhookUrl);
-        } else {
-            localStorage.removeItem(CONFIG.STORAGE_WEBHOOK_URL);
-        }
-
-        this.hideSettings();
-        console.log('[UI] Settings saved');
-    }
-
-    /**
-     * Get API key from settings
-     */
-    getApiKey() {
-        return localStorage.getItem(CONFIG.STORAGE_API_KEY) || '';
-    }
-
-    /**
-     * Get webhook URL from settings
-     */
-    getWebhookUrl() {
-        return localStorage.getItem(CONFIG.STORAGE_WEBHOOK_URL) || '';
     }
 
     /**
