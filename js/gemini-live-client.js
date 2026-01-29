@@ -11,6 +11,7 @@ class GeminiLiveClient {
         this.isSetupComplete = false;
 
         // Retry configuration
+        this.apiKey = null;
         this.maxRetries = 3;
         this.retryCount = 0;
         this.connectionTimeout = null;
@@ -32,9 +33,11 @@ class GeminiLiveClient {
 
     /**
      * Connect to Gemini Live API with retry support
+     * @param {string} apiKey - Gemini API key
      * @param {number} maxRetries - Maximum retry attempts (default: 3)
      */
-    connect(maxRetries = 3) {
+    connect(apiKey, maxRetries = 3) {
+        this.apiKey = apiKey;
         this.maxRetries = maxRetries;
         this.retryCount = 0;
         this._attemptConnection();
@@ -48,7 +51,7 @@ class GeminiLiveClient {
             this._cleanupConnection();
         }
 
-        const wsUrl = `${CONFIG.GEMINI_WS_URL}?key=${CONFIG.GEMINI_API_KEY}`;
+        const wsUrl = `${CONFIG.GEMINI_WS_URL}?key=${this.apiKey}`;
 
         console.log(`[GeminiLive] Connecting... (attempt ${this.retryCount + 1}/${this.maxRetries + 1})`);
 

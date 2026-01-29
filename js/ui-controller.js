@@ -44,8 +44,13 @@ class UIController {
 
             // Settings modal
             settingsModal: document.getElementById('settingsModal'),
-            closeSettingsBtn: document.getElementById('closeSettingsBtn')
+            closeSettingsBtn: document.getElementById('closeSettingsBtn'),
+            saveSettingsBtn: document.getElementById('saveSettingsBtn'),
+            apiKeyInput: document.getElementById('apiKeyInput')
         };
+
+        // Load saved settings
+        this._loadSettings();
 
         // Setup event listeners
         this._setupEventListeners();
@@ -60,6 +65,7 @@ class UIController {
         // Settings modal
         this.elements.settingsBtn.addEventListener('click', () => this.showSettings());
         this.elements.closeSettingsBtn.addEventListener('click', () => this.hideSettings());
+        this.elements.saveSettingsBtn.addEventListener('click', () => this._saveSettings());
 
         // Close modal on backdrop click
         this.elements.settingsModal.addEventListener('click', (e) => {
@@ -67,6 +73,37 @@ class UIController {
                 this.hideSettings();
             }
         });
+    }
+
+    /**
+     * Load saved settings from localStorage
+     */
+    _loadSettings() {
+        const apiKey = localStorage.getItem(CONFIG.STORAGE_API_KEY) || '';
+        this.elements.apiKeyInput.value = apiKey;
+    }
+
+    /**
+     * Save settings to localStorage
+     */
+    _saveSettings() {
+        const apiKey = this.elements.apiKeyInput.value.trim();
+
+        if (apiKey) {
+            localStorage.setItem(CONFIG.STORAGE_API_KEY, apiKey);
+        } else {
+            localStorage.removeItem(CONFIG.STORAGE_API_KEY);
+        }
+
+        this.hideSettings();
+        console.log('[UI] Settings saved');
+    }
+
+    /**
+     * Get API key from settings
+     */
+    getApiKey() {
+        return localStorage.getItem(CONFIG.STORAGE_API_KEY) || '';
     }
 
     /**

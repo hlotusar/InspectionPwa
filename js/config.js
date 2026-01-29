@@ -3,9 +3,8 @@
  */
 
 const CONFIG = {
-    // API Credentials - Replace with your actual values
-    GEMINI_API_KEY: 'AIzaSyDr2kLs5Pjjs5yZGdjTMgM7oZat24ork_I',
-    WEBHOOK_URL: '',  // Optional: 'YOUR_WEBHOOK_URL_HERE'
+    // Webhook URL (optional) - set here or leave empty
+    WEBHOOK_URL: '',
 
     // Gemini Live API endpoint
     GEMINI_WS_URL: 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent',
@@ -30,6 +29,9 @@ const CONFIG = {
 
     // Session
     SESSION_TIMEOUT_MS: 10 * 60 * 1000, // 10 minute limit
+
+    // Local storage key for API key
+    STORAGE_API_KEY: 'gemini_api_key',
 
     // System prompt for HVAC inspection
     SYSTEM_PROMPT: `You are an AI inspection assistant helping a field technician inspect HVAC equipment in real-time. You can see through their camera and hear them speak.

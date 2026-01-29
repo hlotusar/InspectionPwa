@@ -267,9 +267,11 @@ class App {
             return;
         }
 
-        // Check for API key in config
-        if (!CONFIG.GEMINI_API_KEY || CONFIG.GEMINI_API_KEY === 'YOUR_API_KEY_HERE') {
-            alert('Please configure your Gemini API key in js/config.js');
+        // Check for API key
+        const apiKey = this.ui.getApiKey();
+        if (!apiKey) {
+            this.ui.showSettings();
+            alert('Please enter your Gemini API key in settings.');
             return;
         }
 
@@ -303,7 +305,7 @@ class App {
             this.ui.setCameraOverlay(false);
 
             // Connect to Gemini (with built-in retry)
-            this.gemini.connect();
+            this.gemini.connect(apiKey);
 
             // Set session timeout (Gemini Live API has 10-min limit)
             this.sessionTimeout = setTimeout(() => {
